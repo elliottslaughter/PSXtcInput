@@ -178,7 +178,7 @@ XtcInputModuleBase::~XtcInputModuleBase ()
 
 /// Method which is called once at the beginning of the job
 void 
-XtcInputModuleBase::beginJob(Event& evt, Env& env)
+XtcInputModuleBase::beginJob(Event& evt, PSEnv::Env& env)
 {
   MsgLog(name(), debug, name() << ": in beginJob()");
 
@@ -218,7 +218,7 @@ XtcInputModuleBase::beginJob(Event& evt, Env& env)
     MsgLog(name(),trace," beginJob datagrams: ");
     int idx=0;
     BOOST_FOREACH(const XtcInput::Dgram& dg, eventDg) {
-      MsgLog(name(),debug,"  dg " << idx << ": " << Dgram::dumpStr(dg));
+      MsgLog(name(),debug,"  dg " << idx << ": " << XtcInput::Dgram::dumpStr(dg));
       ++idx;
     }
 
@@ -269,7 +269,7 @@ XtcInputModuleBase::beginJob(Event& evt, Env& env)
 }
 
 InputModule::Status 
-XtcInputModuleBase::event(Event& evt, Env& env)
+XtcInputModuleBase::event(Event& evt, PSEnv::Env& env)
 {
   MsgLog(name(), debug, name() << ": in event() - m_l1Count=" << m_l1Count
       << " m_maxEvents=" << m_maxEvents << " m_skipEvents=" << m_skipEvents);
@@ -334,7 +334,7 @@ XtcInputModuleBase::event(Event& evt, Env& env)
       // print the dgram headers since they don't have the same transition
       int idx = 0;
       BOOST_FOREACH(const XtcInput::Dgram& dg, eventDg) {
-        MsgLog(name(),info,"  dg " << idx <<": " << Dgram::dumpStr(dg));
+        MsgLog(name(),info,"  dg " << idx <<": " << XtcInput::Dgram::dumpStr(dg));
         ++idx;
       }
     }
@@ -490,7 +490,7 @@ XtcInputModuleBase::event(Event& evt, Env& env)
 
 /// Method which is called once at the end of the job
 void 
-XtcInputModuleBase::endJob(Event& evt, Env& env)
+XtcInputModuleBase::endJob(Event& evt, PSEnv::Env& env)
 {
 }
 
@@ -499,7 +499,7 @@ XtcInputModuleBase::endJob(Event& evt, Env& env)
 /// If transition is Configure or BeginCalibCycle, uses first DAQ stream 
 /// (skips others) and all control streams.
 void 
-XtcInputModuleBase::fillEvent(const std::vector<XtcInput::Dgram>& dgList, Event& evt, Env& env)
+XtcInputModuleBase::fillEvent(const std::vector<XtcInput::Dgram>& dgList, Event& evt, PSEnv::Env& env)
 {
   // If the same EventKey is in both the DAQ and Control stream,
   // we want the DAQ stream to take precedence so that the DAQ data gets stored.
@@ -534,14 +534,14 @@ XtcInputModuleBase::fillEvent(const std::vector<XtcInput::Dgram>& dgList, Event&
 
 // Fill event with datagram contents
 void 
-XtcInputModuleBase::fillEvent(const XtcInput::Dgram& dg, Event& evt, Env& env)
+XtcInputModuleBase::fillEvent(const XtcInput::Dgram& dg, Event& evt, PSEnv::Env& env)
 {
   MsgLog(name(), debug, name() << ": in fillEvent()");
 
   boost::shared_ptr<psddl_pds2psana::SmallDataProxy> smallDataProxy = \
     psddl_pds2psana::SmallDataProxy::makeSmallDataProxy(dg.file(), m_liveMode, m_liveTimeOut, m_cvt,  &evt, env);
 
-  Dgram::ptr dgptr = dg.dg();
+  XtcInput::Dgram::ptr dgptr = dg.dg();
 
   boost::shared_ptr<PSEvt::DamageMap> damageMap = evt.get();
   // Loop over all XTC contained in the datagram
@@ -596,11 +596,11 @@ XtcInputModuleBase::fillEvent(const XtcInput::Dgram& dg, Event& evt, Env& env)
 }
 
 void
-XtcInputModuleBase::fillEventId(const XtcInput::Dgram& dg, Event& evt, Env& env)
+XtcInputModuleBase::fillEventId(const XtcInput::Dgram& dg, Event& evt, PSEnv::Env& env)
 {
   MsgLog(name(), debug, name() << ": in fillEventId()");
 
-  Dgram::ptr dgptr = dg.dg();
+  XtcInput::Dgram::ptr dgptr = dg.dg();
 
   const Pds::Sequence& seq = dgptr->seq ;
   const Pds::ClockTime& clock = seq.clock() ;
@@ -627,7 +627,7 @@ XtcInputModuleBase::fillEventOffset(const std::vector<XtcInput::Dgram>& dgList, 
   std::vector<int64_t> offsets;
   for (size_t i = 0; i < dgList.size(); i++) {
     const XtcInput::Dgram &dg = dgList[i];
-    Dgram::ptr dgptr = dg.dg();
+    XtcInput::Dgram::ptr dgptr = dg.dg();
 
     DgOffsetIter iter(&(dgptr->xtc));
     iter.iterate();
@@ -677,7 +677,7 @@ XtcInputModuleBase::fillEventDgList(const std::vector<XtcInput::Dgram> & dgList,
 /// If transition is Configure or BeginCalibCycle, uses first DAQ stream 
 /// (skips others) and all control streams.
 void 
-XtcInputModuleBase::fillEnv(const std::vector<XtcInput::Dgram> & dgList, Env& env)
+XtcInputModuleBase::fillEnv(const std::vector<XtcInput::Dgram> & dgList, PSEnv::Env& env)
 {
   // If the same EventKey is in both the DAQ and Control stream,
   // we want the DAQ stream to take precedence.
@@ -719,7 +719,7 @@ XtcInputModuleBase::fillEnv(const std::vector<XtcInput::Dgram> & dgList, Env& en
 
 // Fill environment with datagram contents
 void 
-XtcInputModuleBase::fillEnv(const XtcInput::Dgram& dg, Env& env)
+XtcInputModuleBase::fillEnv(const XtcInput::Dgram& dg, PSEnv::Env& env)
 {
   MsgLog(name(), debug, name() << ": in fillEnv()");
 
@@ -727,7 +727,7 @@ XtcInputModuleBase::fillEnv(const XtcInput::Dgram& dg, Env& env)
   // (except for EPICS data) are considered configuration data. Just store them
   // them in the ConfigStore part of the environment
 
-  Dgram::ptr dgptr = dg.dg();
+  XtcInput::Dgram::ptr dgptr = dg.dg();
 
   boost::shared_ptr<psddl_pds2psana::SmallDataProxy> smallDataProxy = \
     psddl_pds2psana::SmallDataProxy::makeSmallDataProxy(dg.file(), m_liveMode, 
