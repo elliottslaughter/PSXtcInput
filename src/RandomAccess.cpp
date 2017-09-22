@@ -446,7 +446,7 @@ public:
   }
 
 private:
-  enum {MaxDgramSize=0x2000000};
+  enum {MaxDgramSize=0x1000000};
   static std::map<std::string, int> _fd;
 #ifdef PSANA_USE_LEGION
   static pthread_mutex_t _fd_mutex;
