@@ -428,7 +428,8 @@ public:
   }
 
   std::vector<Pds::Dgram *> jump_async(const std::vector<std::string> &filenames, const std::vector<int64_t> &offsets, uintptr_t runtime_, uintptr_t ctx_) {
-#ifdef PSANA_USE_LEGION
+#if 0
+// #ifdef PSANA_USE_LEGION
     ::legion_runtime_t c_runtime = *(::legion_runtime_t *)runtime_;
     ::legion_context_t c_ctx = *(::legion_context_t *)ctx_;
     Legion::Runtime *runtime = Legion::CObjectWrapper::unwrap(c_runtime);
