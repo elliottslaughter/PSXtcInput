@@ -40,6 +40,8 @@
 #ifdef REALM_USE_SUBPROCESSES
 #include "realm/custom_malloc.h"
 #define ENTER_C_API Realm::ScopedAllocatorPush sap(0)
+#else
+#define ENTER_C_API do {} while (0)
 #endif
 
 #endif
@@ -243,9 +245,7 @@ public:
   }
 
   static Legion::TaskID register_jump_task() {
-#ifdef REALM_USE_SUBPROCESSES
     ENTER_C_API;
-#endif
     static const char * const task_name = "jump";
     Legion::TaskVariantRegistrar registrar(task_id, task_name, false /* global */);
     registrar.add_constraint(Legion::ProcessorConstraint(Legion::Processor::IO_PROC));
@@ -439,9 +439,7 @@ public:
 
   std::vector<Pds::Dgram *> jump_async(const std::vector<std::string> &filenames, const std::vector<int64_t> &offsets, uintptr_t runtime_, uintptr_t ctx_) {
 #ifdef PSANA_USE_LEGION
-#ifdef REALM_USE_SUBPROCESSES
     ENTER_C_API;
-#endif
     ::legion_runtime_t c_runtime = *(::legion_runtime_t *)runtime_;
     ::legion_context_t c_ctx = *(::legion_context_t *)ctx_;
     Legion::Runtime *runtime = Legion::CObjectWrapper::unwrap(c_runtime);
@@ -467,8 +465,10 @@ private:
 };
 
 #ifdef PSANA_USE_LEGION
+#ifndef REALM_USE_SUBPROCESSES
 static Legion::TaskID __attribute__((unused)) _force_jump_task_static_initialize =
   RandomAccessXtcReader::register_jump_task();
+#endif
 #endif
 
 std::map<std::string, int> RandomAccessXtcReader::_fd;
