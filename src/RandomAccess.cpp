@@ -262,17 +262,23 @@ public:
     size_t count = filenames.size();
 
     // Create destination region.
-    Legion::Domain domain = Legion::Domain::from_rect<1>(
-      LegionRuntime::Arrays::Rect<1>(LegionRuntime::Arrays::Point<1>(0), LegionRuntime::Arrays::Point<1>(MaxDgramSize-1)));
-    Legion::IndexSpace ispace = runtime->create_index_space(ctx, domain);
-    Legion::FieldSpace fspace = runtime->create_field_space(ctx);
+    Legion::IndexSpace ispace;
+    Legion::FieldSpace fspace;
+    Legion::LogicalRegion region;
     {
-      Legion::FieldAllocator fsa(runtime->create_field_allocator(ctx, fspace));
-      for (size_t i = 0; i < count; i++) {
-        fsa.allocate_field(1, fid_base+i);
+      ENTER_C_API;
+      Legion::Domain domain = Legion::Domain::from_rect<1>(
+        LegionRuntime::Arrays::Rect<1>(LegionRuntime::Arrays::Point<1>(0), LegionRuntime::Arrays::Point<1>(MaxDgramSize-1)));
+      ispace = runtime->create_index_space(ctx, domain);
+      fspace = runtime->create_field_space(ctx);
+      {
+        Legion::FieldAllocator fsa(runtime->create_field_allocator(ctx, fspace));
+        for (size_t i = 0; i < count; i++) {
+          fsa.allocate_field(1, fid_base+i);
+        }
       }
+      region = runtime->create_logical_region(ctx, ispace, fspace);
     }
-    Legion::LogicalRegion region = runtime->create_logical_region(ctx, ispace, fspace);
 
     // Launch task.
     Legion::Future f;
@@ -315,7 +321,10 @@ public:
       for (size_t i = 0; i < count; i++) {
         task.add_field(0, fid_base+i);
       }
-      f = runtime->execute_task(ctx, task);
+      {
+        ENTER_C_API;
+        f = runtime->execute_task(ctx, task);
+      }
       delete[] buffer;
     }
 
@@ -328,27 +337,42 @@ public:
       for (size_t i = 0; i < count; i++) {
         mapping.add_field(fid_base+i);
       }
-      Legion::PhysicalRegion physical = runtime->map_region(ctx, mapping);
+      Legion::PhysicalRegion physical;
+      {
+        ENTER_C_API;
+        physical = runtime->map_region(ctx, mapping);
+      }
 
       // Skip if task failed.
-      if (f.get_result<bool>()) {
-        physical.wait_until_valid();
+      bool ok;
+      {
+        ENTER_C_API;
+        ok = f.get_result<bool>();
+      }
+      if (ok) {
+        LegionRuntime::Arrays::Rect<1> rect;
+        {
+          ENTER_C_API;
+          physical.wait_until_valid();
 
-        LegionRuntime::Arrays::Rect<1> rect = runtime->get_index_space_domain(
-          physical.get_logical_region().get_index_space()).get_rect<1>();
+          rect = runtime->get_index_space_domain(
+            physical.get_logical_region().get_index_space()).get_rect<1>();
+        }
         LegionRuntime::Arrays::Rect<1> subrect;
         LegionRuntime::Accessor::ByteOffset stride;
         std::vector<void *> base_ptr;
         for (size_t i = 0; i < count; i++) {
-          LegionRuntime::Accessor::RegionAccessor<LegionRuntime::Accessor::AccessorType::Generic> accessor =
-            physical.get_field_accessor(fid_base+i);
-
-          void * base_ptr = accessor.raw_rect_ptr<1>(rect, subrect, &stride);
+          void *base_ptr;
+          {
+            ENTER_C_API;
+            LegionRuntime::Accessor::RegionAccessor<LegionRuntime::Accessor::AccessorType::Generic> accessor =
+              physical.get_field_accessor(fid_base+i);
+            base_ptr = accessor.raw_rect_ptr<1>(rect, subrect, &stride);
+          }
           assert(base_ptr);
           assert(subrect == rect);
           assert(rect.lo == LegionRuntime::Arrays::Point<1>::ZEROES());
           assert(stride.offset == 1);
-
 
           Pds::Dgram *dghdr = (Pds::Dgram *)base_ptr;
           if (dghdr->xtc.sizeofPayload()>MaxDgramSize)
@@ -361,9 +385,12 @@ public:
     }
 
     // Destroy temporary region.
-    runtime->destroy_logical_region(ctx, region);
-    runtime->destroy_index_space(ctx, ispace);
-    runtime->destroy_field_space(ctx, fspace);
+    {
+      ENTER_C_API;
+      runtime->destroy_logical_region(ctx, region);
+      runtime->destroy_index_space(ctx, ispace);
+      runtime->destroy_field_space(ctx, fspace);
+    }
 
     return dgs;
   }
@@ -439,7 +466,6 @@ public:
 
   std::vector<Pds::Dgram *> jump_async(const std::vector<std::string> &filenames, const std::vector<int64_t> &offsets, uintptr_t runtime_, uintptr_t ctx_) {
 #ifdef PSANA_USE_LEGION
-    ENTER_C_API;
     ::legion_runtime_t c_runtime = *(::legion_runtime_t *)runtime_;
     ::legion_context_t c_ctx = *(::legion_context_t *)ctx_;
     Legion::Runtime *runtime = Legion::CObjectWrapper::unwrap(c_runtime);
