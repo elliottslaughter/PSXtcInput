@@ -281,7 +281,7 @@ public:
     }
 
     // Launch task.
-    Legion::Future f;
+    Legion::Future *f;
     {
       size_t total_filenames_size = 0;
       for (size_t i = 0; i < count; i++) {
@@ -323,7 +323,7 @@ public:
       }
       {
         ENTER_C_API;
-        f = runtime->execute_task(ctx, task);
+        f = new Legion::Future(runtime->execute_task(ctx, task));
       }
       delete[] buffer;
     }
@@ -347,7 +347,7 @@ public:
       bool ok;
       {
         ENTER_C_API;
-        ok = f.get_result<bool>();
+        ok = f->get_result<bool>();
       }
       if (ok) {
         LegionRuntime::Arrays::Rect<1> rect;
@@ -387,6 +387,7 @@ public:
     // Destroy temporary region.
     {
       ENTER_C_API;
+      delete f;
       runtime->destroy_logical_region(ctx, region);
       runtime->destroy_index_space(ctx, ispace);
       runtime->destroy_field_space(ctx, fspace);
@@ -466,10 +467,15 @@ public:
 
   std::vector<Pds::Dgram *> jump_async(const std::vector<std::string> &filenames, const std::vector<int64_t> &offsets, uintptr_t runtime_, uintptr_t ctx_) {
 #ifdef PSANA_USE_LEGION
-    ::legion_runtime_t c_runtime = *(::legion_runtime_t *)runtime_;
-    ::legion_context_t c_ctx = *(::legion_context_t *)ctx_;
-    Legion::Runtime *runtime = Legion::CObjectWrapper::unwrap(c_runtime);
-    Legion::Context ctx = Legion::CObjectWrapper::unwrap(c_ctx)->context();
+    Legion::Runtime *runtime;
+    Legion::Context ctx;
+    {
+      ENTER_C_API;
+      ::legion_runtime_t c_runtime = *(::legion_runtime_t *)runtime_;
+      ::legion_context_t c_ctx = *(::legion_context_t *)ctx_;
+      runtime = Legion::CObjectWrapper::unwrap(c_runtime);
+      ctx = Legion::CObjectWrapper::unwrap(c_ctx)->context();
+    }
     return launch_jump_task(runtime, ctx, filenames, offsets);
 #else
     std::vector<Pds::Dgram *> dgs;
