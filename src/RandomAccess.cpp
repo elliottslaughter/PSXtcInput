@@ -39,9 +39,10 @@
 
 #ifdef REALM_USE_SUBPROCESSES
 #include "realm/custom_malloc.h"
-#define ENTER_C_API Realm::ScopedAllocatorPush sap(0)
+#include "realm/runtime_impl.h"
+#define INSTALL_REALM_ALLOCATOR Realm::ScopedAllocatorPush sap(Realm::RuntimeImpl::realm_allocator)
 #else
-#define ENTER_C_API do {} while (0)
+#define INSTALL_REALM_ALLOCATOR do {} while (0)
 #endif
 
 #endif
@@ -245,7 +246,7 @@ public:
   }
 
   static Legion::TaskID register_jump_task() {
-    ENTER_C_API;
+    INSTALL_REALM_ALLOCATOR;
     static const char * const task_name = "jump";
     Legion::TaskVariantRegistrar registrar(task_id, task_name, false /* global */);
     registrar.add_constraint(Legion::ProcessorConstraint(Legion::Processor::IO_PROC));
@@ -266,7 +267,7 @@ public:
     Legion::FieldSpace fspace;
     Legion::LogicalRegion region;
     {
-      ENTER_C_API;
+      INSTALL_REALM_ALLOCATOR;
       Legion::Domain domain = Legion::Domain::from_rect<1>(
         LegionRuntime::Arrays::Rect<1>(LegionRuntime::Arrays::Point<1>(0), LegionRuntime::Arrays::Point<1>(MaxDgramSize-1)));
       ispace = runtime->create_index_space(ctx, domain);
@@ -322,7 +323,7 @@ public:
         task.add_field(0, fid_base+i);
       }
       {
-        ENTER_C_API;
+        INSTALL_REALM_ALLOCATOR;
         f = new Legion::Future(runtime->execute_task(ctx, task));
       }
       delete[] buffer;
@@ -339,20 +340,20 @@ public:
       }
       Legion::PhysicalRegion physical;
       {
-        ENTER_C_API;
+        INSTALL_REALM_ALLOCATOR;
         physical = runtime->map_region(ctx, mapping);
       }
 
       // Skip if task failed.
       bool ok;
       {
-        ENTER_C_API;
+        INSTALL_REALM_ALLOCATOR;
         ok = f->get_result<bool>();
       }
       if (ok) {
         LegionRuntime::Arrays::Rect<1> rect;
         {
-          ENTER_C_API;
+          INSTALL_REALM_ALLOCATOR;
           physical.wait_until_valid();
 
           rect = runtime->get_index_space_domain(
@@ -364,7 +365,7 @@ public:
         for (size_t i = 0; i < count; i++) {
           void *base_ptr;
           {
-            ENTER_C_API;
+            INSTALL_REALM_ALLOCATOR;
             LegionRuntime::Accessor::RegionAccessor<LegionRuntime::Accessor::AccessorType::Generic> accessor =
               physical.get_field_accessor(fid_base+i);
             base_ptr = accessor.raw_rect_ptr<1>(rect, subrect, &stride);
@@ -386,7 +387,7 @@ public:
 
     // Destroy temporary region.
     {
-      ENTER_C_API;
+      INSTALL_REALM_ALLOCATOR;
       delete f;
       runtime->destroy_logical_region(ctx, region);
       runtime->destroy_index_space(ctx, ispace);
@@ -470,7 +471,7 @@ public:
     Legion::Runtime *runtime;
     Legion::Context ctx;
     {
-      ENTER_C_API;
+      INSTALL_REALM_ALLOCATOR;
       ::legion_runtime_t c_runtime = *(::legion_runtime_t *)runtime_;
       ::legion_context_t c_ctx = *(::legion_context_t *)ctx_;
       runtime = Legion::CObjectWrapper::unwrap(c_runtime);
