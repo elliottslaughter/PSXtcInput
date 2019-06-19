@@ -41,6 +41,6 @@ if "PSANA_LEGION_DIR" in os.environ:
     LIBPATH=psana_legion_dir
     CCFLAGS=extra_ccflags
 else:
-    extra_ccflags += " -std=c++98 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0"
+    extra_ccflags = "-std=c++98 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0"
     CCFLAGS=extra_ccflags
 standardSConscript(**locals())
